@@ -3,6 +3,8 @@ import struct
 import sys
 import threading
 
+leader = 0
+
 def connect():
     #threading
     x = threading.Thread(target=send_function, args=())
@@ -27,17 +29,28 @@ def send_function():
     ttl = struct.pack('b', 1)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
     try:
+        sent = sock.sendto("hello".encode(), (multicast_group, 10000))
+        while True:
+                try:
+                    data, server = sock.recvfrom(16)
+                except socket.timeout:
+                    leader = 1
+                    break
+                else:
+                    print('received "%s" from %s' % (data.decode(), server[0]))
+                    break
         while True:
             print('\nEnter your message:')
             message = input()
 
             if message == "exit":
-                sent = sock.sendto("i leave".encode(), (multicast_group, 10000))
+                sent = sock.sendto("left the chat".encode(), (multicast_group, 10000))
                 break
             # Send data to the multicast group
             sent = sock.sendto(message.encode(), (multicast_group, 10000))
             #print('\nsending "%s"' % message)
 
+            # nur wenn er leader ist
             # Look for responses from all recipients
             while True:
                 try:
@@ -45,7 +58,7 @@ def send_function():
                 except socket.timeout:
                     break
                 else:
-                    print('received "%s" from %s' % (data, server[0]))
+                    print('received "%s" from %s' % (data.decode(), server[0]))
             
 
     finally:
@@ -73,10 +86,14 @@ def receive_function():
     # Receive/respond loop
     while True:
         data, address = sock.recvfrom(1024)
+        # answer new member
+        if data.decode() == "hello" and address[0] is not socket.IPPROTO_IP and leader == 1:
+            sock.sendto('i am leader'.encode(), address)
         
         #print('\nreceived %s bytes from %s' % (len(data), address))
-        print(address[0], ": ", data)
+        print(address[0], ": ", data.decode())
 
+        # ack nur wenn heartbeat empfangen wird
         #print('\nsending acknowledgement to', address)
         sock.sendto('ack'.encode(), address)
 
