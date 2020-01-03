@@ -45,7 +45,7 @@ def send_function():
                 except socket.timeout:
                     break
                 else:
-                    print('received "%s" from %s' % (data, server))
+                    print('received "%s" from %s' % (data, server[0]))
             
 
     finally:
@@ -75,7 +75,7 @@ def receive_function():
         data, address = sock.recvfrom(1024)
         
         #print('\nreceived %s bytes from %s' % (len(data), address))
-        print(address, ": ", data)
+        print(address[0], ": ", data)
 
         #print('\nsending acknowledgement to', address)
         sock.sendto('ack'.encode(), address)
