@@ -15,33 +15,18 @@ class Message(Enum):
     HIGHEST = 6
     ACK = 7
 
-leader = 0
+iamleader = 0
+memberlist = []
+eyedie = 0
+ip_leader = ""
 
 def connect():
-    #threading
-    #x = threading.Thread(target=send_function, args=())
-    #x.start()
-
-    #y = threading.Thread(target=receive_function, args=())
-    #y.start()
-
-    # handles output for chat members in console
-    ui = threading.Thread(target=ui_function, args=())
-    ui.start()
-
     # handles received messages in multicast
-    recv_multi = threading.Thread(target=receive_multi, args=(ui))
-    recv_multi.start()
-
-    # handles received messages in unicast (leoder only)
-    # will be started when member becomes leader
-    recv_uni = threading.Thread(target=receive_uni, args=())
-    recv_uni.start()
-
-    
+    recv_multi = threading.Thread(target=receive_multi, args=())
+    recv_multi.start()    
 
 
-def receive_multi(ui):
+def receive_multi():
     multicast_group = '224.3.29.71'
     server_address = ('', 10000)
 
@@ -57,71 +42,147 @@ def receive_multi(ui):
     mreq = struct.pack('4sL', group, socket.INADDR_ANY)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
+    # handles output for chat members in console
+    ui = threading.Thread(target=ui_function, args=(sock))
+    ui.start()
+
     # Receive loop
     while True:
         data, address = sock.recvfrom(1024)
         jsonData = data.decode()
 
-        # leader logik fehlt
-        if jsonData.type == HEARTBEAT and not leader:
-            sent = sock.sendto("{ type: 'ACK' , data: ''}".encode(), address)
+        if jsonData.type == HEARTBEAT:
+            sent = sock.sendto('{ "type": "ACK" , "data": ""}'.encode(), address)
         elif jsonData.type == LEADER:
-            pass
+            election.exit()
+            ip_leader = address
+            if iamleader:
+                # handles received messages in unicast (leoder only)
+                # will be started when member becomes leader
+                recv_uni = threading.Thread(target=receive_uni, args=(sock, multicast_group))
+                recv_uni.start()
+                heartbeat = threading.Thread(target=heartbeat, args=(sock, multicast_group))
+                heartbeat.start()
         elif jsonData.type == MESSAGE:
-            # TODO send to ui
+            memberlist = jsonData.data.memberlist
+            eyedie = jsonData.data.id
         elif jsonData.type == ELECTION:
+            # TODO grund der election abfragen -> fehlender heartbeat oder 2 heartbeats??
+            if iamleader:
+                receive_uni.exit()
+                iamleader = 0
             # handles election when multicast receives election message
-            election = threading.Thread(target=elec_function, args=())
+            election = threading.Thread(target=elec_function, args=(address, sock, multicast_group))
             election.start()
-            # parameter übergeben
             
         
 
         # if heartbeat -> send ack
-        # if no heartbeat -> send election
+        # if no heartbeat -> send election -> fehlt
         # if leader -> nothing
         # if message & i am leader -> send to ui
         # if election -> send highest oder wait
         # if highest -> send highest or wait
 
 # only leader
-def receive_uni():
+# TODO
+def heartbeat(sock, multicast_group):
+    # if ack -> nothing        
+    while True:
+        sent = sock.sendto('{ "type": "HEARTBEAT", "data": [{ "memberlist":' + memberlist + ', "id": ' + eyedie + '}]}'.encode(), (multicast_group, 10000))
+        memberlist = []
+        try:
+            data, server = sock.recvfrom(16)
+            jsonData = data.decode()
+            if jsonData.type == ACK:
+                memberlist.append(server[0])
+        except:
+            pass
+
+
+# only leader
+def receive_uni(sock, multicast_group):
     # if message_request -> add id to message and send to multicast
-    # if ack -> nothing
+    while True:
+        try:
+            data, server = sock.recvfrom(1024)
+            jsonData = data.decode()
+            if jsonData.type == MESSAGE_REQUEST:
+                eyedie += 1
+                message = '{ "type": "MESSAGE", "data": [{ "id": ' + eyedie + ', "msg": ' + jsonData.data + ', "sender": ' + server[0] + '}]}
+                sent = sock.sendto(message.encode(), (multicast_group, 10000))
 
 
-def ui_function():
-    # parse and print messages
+def ui_function(sock):
+    print("Welcome to the P2P Chat!")
+    print("To get started, just enter your message")
+    while True:
+        try: 
+            message = input()
+            sent = sock.sendto('{"type": "MESSAGE_REQUEST", "data": ' + message + '}'.encode(), ip_leader)
+        except:
+            pass
+        try:
+            data, server = sock.recvfrom(1024)
+            jsonData = data.decode() 
+            if jsonData.type == MESSAGE:
+                print(jsonData.data.sender, ": ", jsonData.data.msg)
+        except:
+            pass
 
-def elec_function():
-    if address > socket.getsockname():
-                pass
-            else:
-                sent = sock.sendto("{ type: 'HIGHEST', data: ''}".encode(), (multicast_group, 10000))
-                while True:
-                    try:
-                        data, address = sock.recvfrom(1024)
-                        jsonData = data.decode()
-                        if jsonData.type == HIGHEST:
-                            break
-                    except socket.timeout:
-                        sent = sock.sendto("{ type: 'LEADER', data: ''}".encode(), (multicast_group, 10000))
-                        break
-        elif jsonData.type == HIGHEST:
-            if address > socket.getsockname():
-                pass
-            else:
-                sent = sock.sendto("{ type: 'HIGHEST', data: ''}".encode(), (multicast_group, 10000))
-                while True:
-                    try:
-                        data, address = sock.recvfrom(1024)
-                        jsonData = data.decode()
-                        if jsonData.type == HIGHEST:
-                            break
-                    except socket.timeout:
-                        sent = sock.sendto("{ type: 'LEADER', data: ''}".encode(), (multicast_group, 10000))
-                        break
-    # thread beenden
+
+def elec_function(address, sock, multicast_group):
+    higher = False
+    for ip in memberlist:      
+        if ip > socket.getsockname():
+            higher = True
+    if higher = True:
+        pass
+    else:
+        sent = sock.sendto('{ "type": "HIGHEST", "data": ""}'.encode(), (multicast_group, 10000))
+        while True:
+            try:
+                data, address = sock.recvfrom(1024)
+                jsonData = data.decode()
+                if jsonData.type == HIGHEST:
+                    higher = False
+                    for ip in memberlist:      
+                        if ip > socket.getsockname():
+                            higher = True
+                    if higher = True:
+                        pass
+                    else:
+                        sent = sock.sendto('{ "type": "HIGHEST", "data": ""}'.encode(), (multicast_group, 10000))
+                        while True:
+                            try:
+                                data, address = sock.recvfrom(1024)
+                                jsonData = data.decode()
+                                if jsonData.type == HIGHEST:
+                                    break
+                            except socket.timeout:
+                                sent = sock.sendto('{ "type": "LEADER", "data": ""}'.encode(), (multicast_group, 10000))
+                                iamleader = 1
+                                break
+            except socket.timeout:
+                    sent = sock.sendto('{ "type": "LEADER", "data": ""}'.encode(), (multicast_group, 10000))
+                    iamleader = 1
+                    break
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def send_function():
