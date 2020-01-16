@@ -32,15 +32,16 @@ iamleader = False
 memberlist = []
 eyedie = 0
 ip_leader = ""
-i_am_the_leader = False
 heartbeat_died = False
+multicast_group = "224.3.29.71"
 
 def connect():
+    
     # handles received messages in multicast
     recv_multi = threading.Thread(target=receive_multi, args=())
     recv_multi.start()
     # handles output for chat members in console
-    ui = threading.Thread(target=ui_function, args=(sock))
+    ui = threading.Thread(target=ui_function, args=())
     ui.start()
     ui.deamon = True
 
@@ -49,8 +50,8 @@ def connect():
 def send(sock, dest, type, data=None):
     # FIXME check types of arguments
     msg = {
-        type: type.name,
-        data: data,
+        "type": type.name,
+        "data": data,
     }
     sock.sendto(json.dumps(msg).encode(), dest)
 
@@ -60,7 +61,6 @@ def receive_multi():
     global eyedie
     global ip_leader
     global memberlist
-
 
     # Create the socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -74,30 +74,31 @@ def receive_multi():
     mreq = struct.pack('4sL', group, socket.INADDR_ANY)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
+
     sock.settimeout(HEARTBEAT_TIMEOUT) # TODO Add jitter
 
     # Receive loop
     while True:
         try:
+            global eyedie
             data, server = sock.recvfrom(1024)
+            jsonData = data.decode()
+            jsonData = json.loads(jsonData)
+            msgType = jsonData["type"]
             if server[0] != ip_leader and msgType != MessageType.ELECTION.name:
                 print("Warning: Received multicast from {} when {} is the leader.".format(server[0], ip_leader))
-            jsonData = data.decode()
-            print(jsonData)
-            jsonData = json.loads(jsonData)
-
-            msgType = jsonData["type"]
+            # heartbeat ack
             if msgType == MessageType.HEARTBEAT.name:
                 send(sock, server, MessageType.ACK)
                 memberlist = json.dumps(jsonData["data"]["memberlist"])
                 eyedie = jsonData["data"]["id"]
+            # start election process
             elif msgType == MessageType.ELECTION.name:
                 print("election because of {}".format(jsonData["data"]))
-                # TODO grund der election abfragen -> fehlender heartbeat oder 2 heartbeats??
                 # handles election when multicast receives election message
-                # FIXME Maybe only call function here
                 elec_function(sock)
                 sock.settimeout(HEARTBEAT_TIMEOUT) # TODO Add Jitter
+            # receive message 
             elif msgType == MessageType.MESSAGE.name:
                 # TODO
                 print_message(jsonData)
@@ -105,12 +106,12 @@ def receive_multi():
             else:
                 raise BaseException("Wrong message type on multicast {}".format(msgType))
         except socket.timeout:
-            if i_am_the_leader:
+            if iamleader:
                 continue
-            sent = sock.sendto('{ "type": "ELECTION" , "data": "no_hb"}'.encode(), (multicast_group, PORT))
+            send(sock, MULTICAST_ADDR, MessageType.ELECTION, data="no heartbeat")
             elec_function(sock)
             sock.settimeout(HEARTBEAT_TIMEOUT) # TODO Add Jitter
-            # TODO start election
+    
 
 def print_message(msg):
     print("message: {}".format(json.dumps(msg)))
@@ -121,7 +122,7 @@ def heartbeat(sock):
     global memberlist
     global eyedie
     global hb_died
-    while i_am_the_leader:
+    while iamleader:
         # if ack -> nothing  
         print(json.dumps(memberlist))
         # FIXME maybe lock here
@@ -131,8 +132,8 @@ def heartbeat(sock):
             memberlist:memberlist,
             id:eyedie,
         }
-        sock.send(sock, MULTICAST_ADDR, MessageType.HEARTBEAT, data=data)
-        sleep(HEARTBEAT_INTERVAL)
+        send(sock, MULTICAST_ADDR, MessageType.HEARTBEAT, data=data)
+        time.sleep(HEARTBEAT_INTERVAL)
     hb_died = True
 
 
@@ -142,20 +143,23 @@ def receive_uni(sock):
     print("receive uni")
     global receive_uni_died
     # if message_request -> add id to message and send to multicast
-    while i_am_the_leader:
+    while iamleader:
         try:
+            global eyedie
             data, server = sock.recvfrom(1024)
             jsonData = data.decode()
             jsonData = json.loads(jsonData)
             msgType = jsonData["type"]
+            # send message to multicast
             if msgType == MessageType.MESSAGE_REQUEST.name:
                 eyedie += 1
                 data = {
-                    id: str(eyedie),
-                    msg: jsonData["data"],
-                    sender: server[0],
+                    "id": str(eyedie),
+                    "msg": jsonData["data"],
+                    "sender": server[0]
                 }
                 send(sock, MULTICAST_ADDR, MessageType.MESSAGE, data=data)
+            # create memberlist
             elif msgType == MessageType.ACK.name:
                 memberlist.append(server[0])
             else:
@@ -167,22 +171,24 @@ def receive_uni(sock):
 def start_leader_thread(sock):
     global hb_thread
     global receive_uni_died
-    global hearbeat_died
+    global heartbeat_died
     global receive_uni_thread
-    if not (receive_uni_died and hearbeat_died):
+    # make sure leader is dead and there is no heartbeat
+    if not (receive_uni_died and heartbeat_died):
         raise BaseException("the old leader threads should be dead")
     # TODO maybe join threads
-    if not (i_am_the_leader):
+    if not (iamleader):
         raise BaseException("That is unexpected")
     receive_uni_died = False
-    hearbeat_died = False
+    heartbeat_died = False
     hb_thread = threading.Thread(target=heartbeat, args=(sock))
     hb_thread.start()
     receive_uni_thread = threading.Thread(target=receive_uni, args=(sock))
     receive_uni_thread.start()
 
 def stop_leader_thread(sock):
-    i_am_the_leader = False
+    global iamleader
+    iamleader = False
 
 def ui_function(sock):
     print("Welcome to the P2P Chat!")
@@ -190,7 +196,8 @@ def ui_function(sock):
     while True:
         try: 
             message = input()
-            sent = sock.sendto('{"type": "MESSAGE_REQUEST", "data": ' + message + '}'.encode(), ip_leader)
+            send(sock, UNICAST_ADDR, MessageType.MESSAGE_REQUEST, data=message)
+            #sent = sock.sendto('{"type": "MESSAGE_REQUEST", "data": ' + message + '}'.encode(), ip_leader)
         except:
             pass
         try:
@@ -206,6 +213,12 @@ def ui_function(sock):
 # If ip1 = ip2: 0
 # If ip1 > ip2: 1
 def compareIP(ip1, ip2):
+    if ip1 < ip2:
+        return -1
+    elif ip1 == ip2:
+        return 0
+    elif ip1 > ip2:
+        return 1
     raise BaseException("Not yet implemented")
 
 def receive(sock):
@@ -217,16 +230,18 @@ def receive(sock):
     return (data, msgType, address[0])
 
 def elec_function(sock):
-    stop_leader_thread()
+    global iamleader
+    stop_leader_thread(sock)
     if election(sock):
-        i_am_leader = True
-        start_leader_thread()
+        iamleader = True
+        start_leader_thread(sock)
 
 # Return True if we are the leader now
 def election(sock):
     global iamleader
     global memberlist
-    our_ip = foo
+    global ip_leader
+    our_ip = sock.gethostname()
     local_memberlist = memberlist
     current_highest = None
     sock.settimeout(HIGHEST_TIMEOUT)
@@ -252,14 +267,16 @@ def election(sock):
                         local_memberlist.append(addr)
                         continue
                     else:
-                        print("WTF. Someone send my ip...")
+                        print("WTF. Someone sent my ip...")
                 else:
                     raise BaseException("Expected HIGHEST got {}".format(msgType))
             except socket.timeout:
-                sent = sock.sendto('{ "type": "LEADER", "data": ""}'.encode(), (multicast_group, PORT))
+                #sent = sock.sendto('{ "type": "LEADER", "data": ""}'.encode(), (multicast_group, PORT))
+                send(sock, MULTICAST_ADDR, MessageType.LEADER)
                 print("You are the leader now")
                 iamleader = True
-                # TODO ip_leader = Your IP
+                # ip_leader = Your IP
+                ip_leader = sock.gethostname()
                 return True
         elif current_highest != None:
             try:
@@ -287,7 +304,7 @@ def election(sock):
             try:
                 data, msgType, addr = receive(sock)
                 if msgType == MessageType.HIGHEST.name:
-                    if compareIP(addr, your_ip) == -1:
+                    if compareIP(addr, our_ip) == -1:
                         send(sock, MULTICAST_ADDR, MessageType.HIGHEST)
                         current_highest = None
                         # TODO maybe wait a little bit less then highest timeout
@@ -306,13 +323,15 @@ def election(sock):
                             else:
                                 raise BaseException("Expected HIGHEST got {}".format(msgType))
                         except socket.timeout:
-                            sent = sock.sendto('{ "type": "LEADER", "data": ""}'.encode(), (multicast_group, PORT))
+                            #sent = sock.sendto('{ "type": "LEADER", "data": ""}'.encode(), (multicast_group, PORT))
+                            send(sock, MULTICAST_ADDR, MessageType.LEADER)
                             print("You are the leader now")
                             iamleader = True
-                            # TODO ip_leader = Your IP
+                            # ip_leader = Your IP
+                            ip_leader = sock.gethostname()
                             return True
                         local_memberlist = []
-                    elif compareIP(addr, your_ip) == 1:
+                    elif compareIP(addr, our_ip) == 1:
                         current_highest = addr
                         local_memberlist.append(addr)
                         continue
@@ -329,7 +348,6 @@ def election(sock):
                 local_memberlist.pop_highest() # TODO
                 current_highest = None
                     
-
 
 if __name__ == "__main__":
     connect()
