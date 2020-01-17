@@ -101,8 +101,7 @@ def receive_multi(sock):
                 sock.settimeout(HEARTBEAT_TIMEOUT + random.randrange(0, HEARTBEAT_TIMEOUT_JITTER))
             # receive message 
             elif msgType == MessageType.MESSAGE.name:
-                # TODO
-                print_message(jsonData)
+                print_message(jsonData["data"]["sender"], jsonData["data"]["msg"])
                 # messages_to_be_printed.append(jsonData)
             elif msgType == MessageType.LEADER.name:
                 if iamleader:
@@ -119,8 +118,8 @@ def receive_multi(sock):
             #sock.settimeout(HEARTBEAT_TIMEOUT + random.randrange(0, HEARTBEAT_TIMEOUT_JITTER))
     
 
-def print_message(msg):
-    print("message: {}".format(json.dumps(msg)))
+def print_message(sender, msg):
+    print("{} says: {}".format(sender, msg))
 
 # only leader
 def heartbeat(sock):
@@ -215,18 +214,19 @@ def ui_function(sock):
     while True:
         try: 
             message = input()
-            send(sock, UNICAST_ADDR, MessageType.MESSAGE_REQUEST, data=message)
+            send(sock, ip_leader, MessageType.MESSAGE_REQUEST, data=message)
+            print("gesendet")
             #sent = sock.sendto('{"type": "MESSAGE_REQUEST", "data": ' + message + '}'.encode(), ip_leader)
         except:
             pass
-        try:
-            data, server = sock.recvfrom(1024)
-            jsonData = data.decode() 
-            jsonData = json.loads(jsonData)
-            if jsonData["type"] == "MESSAGE":
-                print(jsonData["data"]["sender"], ": ", jsonData["data"]["msg"])
-        except socket.timeout:
-            pass
+        #try:
+         #   data, server = sock.recvfrom(1024)
+          #  jsonData = data.decode() 
+           # jsonData = json.loads(jsonData)
+            #if jsonData["type"] == "MESSAGE":
+             #   print(jsonData["data"]["sender"], ": ", jsonData["data"]["msg"])
+        #except socket.timeout:
+        #    pass
 
 # If ip1 < ip2: -1
 # If ip1 = ip2: 0
