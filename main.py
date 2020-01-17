@@ -18,6 +18,7 @@ class MessageType(Enum):
     HIGHEST = 6
     ACK = 7
 
+# constants
 HEARTBEAT_INTERVAL = 8
 HEARTBEAT_TIMEOUT = 15
 HEARTBEAT_TIMEOUT_JITTER = 5
@@ -29,6 +30,7 @@ UNICAST_ADDR = ('', PORT_UNICAST)
 
 # messages_to_be_printed = []
 
+# globals
 iamleader = False
 memberlist = []
 eyedie = 0
@@ -37,6 +39,8 @@ heartbeat_died = False
 receive_uni_died = False
 multicast_group = "224.3.29.71"
 
+# main method
+# creates multicast socket & starts threads
 def connect():
      # Create the socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -61,6 +65,7 @@ def connect():
 
     recv_multi.join()
 
+# sends a message of type to dest through sock with data
 def send(sock, dest, type, data=None):
     # FIXME check types of arguments
     msg = {
@@ -69,6 +74,7 @@ def send(sock, dest, type, data=None):
     }
     sock.sendto(json.dumps(msg).encode(), dest)
 
+# receives and handles all multicast messages
 def receive_multi(sock):
     # globals
     global iamleader
@@ -117,11 +123,12 @@ def receive_multi(sock):
             #elec_function(sock)
             #sock.settimeout(HEARTBEAT_TIMEOUT + random.randrange(0, HEARTBEAT_TIMEOUT_JITTER))
     
-
+# prints message to console
 def print_message(sender, msg):
     print("{} says: {}".format(sender, msg))
 
 # only leader
+# sends heartbeat to multicast
 def heartbeat(sock):
     print("heartbeat")
     global memberlist
@@ -143,6 +150,8 @@ def heartbeat(sock):
 
 
 # only leader
+# receives unicast messages
+# handles acks and message_request
 def receive_uni(sock):
     # TODO übergebe richtigen Socket
     print("receive uni")
@@ -174,6 +183,8 @@ def receive_uni(sock):
             pass
     receive_uni_died = True
 
+# starts leader threads
+# makes a new socket connection
 def start_leader_thread():
     global hb_thread
     global receive_uni_died
@@ -204,10 +215,12 @@ def start_leader_thread():
     receive_uni_thread = threading.Thread(target=receive_uni, args=(sock,))
     receive_uni_thread.start()
 
+# stops leader threads aka unsets globals
 def stop_leader_thread():
     global iamleader
     iamleader = False
 
+# handles console input
 def ui_function(sock):
     print("Welcome to the P2P Chat!")
     print("Connecting...")
@@ -228,9 +241,7 @@ def ui_function(sock):
         #except socket.timeout:
         #    pass
 
-# If ip1 < ip2: -1
-# If ip1 = ip2: 0
-# If ip1 > ip2: 1
+# compares IP addresses
 def compareIP(ip1, ip2):
     if ip1 < ip2:
         return -1
@@ -240,6 +251,7 @@ def compareIP(ip1, ip2):
         return 1
     raise BaseException("Not yet implemented")
 
+# handles messages receiving through sock connection
 def receive(sock):
     global memberlist
     data, address = sock.recvfrom(1024)
@@ -249,6 +261,7 @@ def receive(sock):
     memberlist.append(address[0])
     return (data, msgType, address[0])
 
+# starts the voting algorithm
 def elec_function(sock):
     global iamleader
     stop_leader_thread()
@@ -256,6 +269,7 @@ def elec_function(sock):
         iamleader = True
         start_leader_thread()
 
+# voting algorithm
 # Return True if we are the leader now
 def election(sock):
     global iamleader
@@ -366,7 +380,7 @@ def election(sock):
                 else:
                     raise BaseException("Expected HIGHEST got {}".format(msgType))
             except socket.timeout:
-                local_memberlist = pop_highest(local_memberlist) # TODO
+                local_memberlist = pop_highest(local_memberlist)
                 current_highest = None
     if current_highest == our_ip:
         send(sock, MULTICAST_ADDR, MessageType.LEADER)
@@ -374,11 +388,16 @@ def election(sock):
         iamleader = True
         ip_leader = our_ip
         return True
+    else:
+        raise BaseException("No leader found")
 
 
+# deletes highest member in list
 def pop_highest(plist):
     plist.remove(max(plist))
     return plist
 
+
+# main
 if __name__ == "__main__":
     connect()
