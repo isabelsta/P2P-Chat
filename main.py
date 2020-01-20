@@ -227,19 +227,10 @@ def ui_function(sock):
     while True:
         try: 
             message = input()
-            send(sock, ip_leader, MessageType.MESSAGE_REQUEST, data=message)
-            print("gesendet")
-            #sent = sock.sendto('{"type": "MESSAGE_REQUEST", "data": ' + message + '}'.encode(), ip_leader)
+            send(sock, (ip_leader, 10000), MessageType.MESSAGE_REQUEST, data=message)
         except:
             pass
-        #try:
-         #   data, server = sock.recvfrom(1024)
-          #  jsonData = data.decode() 
-           # jsonData = json.loads(jsonData)
-            #if jsonData["type"] == "MESSAGE":
-             #   print(jsonData["data"]["sender"], ": ", jsonData["data"]["msg"])
-        #except socket.timeout:
-        #    pass
+
 
 # compares IP addresses
 def compareIP(ip1, ip2):
