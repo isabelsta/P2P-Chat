@@ -8,6 +8,16 @@ import random
 from enum import Enum
 from threading import Timer
 
+VERBOSITY = 0
+VERBOSE = 10
+DEBUG = 8
+INFO = 4
+WARN = 2
+ERROR = 0
+def debugPrint(verbosity, msg):
+    if verbosity <= VERBOSITY:
+        print("{}: {}".format(verbosity, str(msg)))
+
 # define types of messages
 class MessageType(Enum):
     HEARTBEAT = 1
@@ -57,9 +67,12 @@ def connect():
     
     # handles received messages in multicast
     recv_multi = threading.Thread(target=receive_multi, args=(sock,))
+    recv_multi.setName("receive_multi")
     recv_multi.start()
+
     # handles output for chat members in console
     ui = threading.Thread(target=ui_function, args=(sock,))
+    ui.setName("ui")
     ui.start()
     ui.deamon = True
 
@@ -72,6 +85,7 @@ def send(sock, dest, type, data=None):
         "type": type.name,
         "data": data,
     }
+    debugPrint(VERBOSE, "Send to {}: {}".format(dest[0], msg))
     sock.sendto(json.dumps(msg).encode(), dest)
 
 # receives and handles all multicast messages
@@ -93,12 +107,14 @@ def receive_multi(sock):
             jsonData = json.loads(jsonData)
             msgType = jsonData["type"]
             if server[0] != ip_leader and msgType != MessageType.ELECTION.name:
-                print("Warning: Received multicast from {} when {} is the leader.".format(server[0], ip_leader))
+                debugPrint(WARN, "Received multicast from {} when {} is the leader.".format(server[0], ip_leader))
             # heartbeat ack
+            debugPrint(VERBOSE, "Got {} from {}".format(msgType, server[0]))
             if msgType == MessageType.HEARTBEAT.name:
                 send(sock, server, MessageType.ACK)
-                memberlist = jsonData["data"]["memberlist"]
-                eyedie = jsonData["data"]["id"]
+                if not iamleader:
+                    memberlist = jsonData["data"]["memberlist"]
+                    eyedie = jsonData["data"]["id"]
             # start election process
             elif msgType == MessageType.ELECTION.name:
                 print("election because of {}".format(jsonData["data"]))
@@ -134,16 +150,22 @@ def heartbeat(sock):
     global memberlist
     global eyedie
     global hb_died
+    our_name = socket.gethostname() 
+    our_ip = socket.gethostbyname(our_name)
     while iamleader:
         # if ack -> nothing 
         # FIXME maybe lock here
         # FIXME or buffer memberlist before clearing
-        #memberlist = []
+        
+        # Because multicast to own ip gets lost sometimes
+        # Just add own ip anyway
+        memberlist.append(our_ip)
         data = {
-            "memberlist": memberlist,
+            "memberlist": list(set(memberlist)),
             "id":eyedie,
         }
-        print(data)
+        memberlist = []
+        debugPrint(DEBUG, data)
         send(sock, MULTICAST_ADDR, MessageType.HEARTBEAT, data=data)
         time.sleep(HEARTBEAT_INTERVAL)
     hb_died = True
@@ -211,8 +233,10 @@ def start_leader_thread():
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
     hb_thread = threading.Thread(target=heartbeat, args=(sock,))
+    hb_thread.setName("heartbeat")
     hb_thread.start()
     receive_uni_thread = threading.Thread(target=receive_uni, args=(sock,))
+    receive_uni_thread.setName("receive_uni")
     receive_uni_thread.start()
 
 # stops leader threads aka unsets globals
