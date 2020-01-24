@@ -113,6 +113,7 @@ def receive_multi(sock):
             debugPrint(VERBOSE, "Got {} from {}".format(msgType, server[0]))
             if msgType == MessageType.HEARTBEAT.name:
                 send(sock, server, MessageType.ACK)
+                ip_leader = server[0]
                 if not iamleader:
                     memberlist = jsonData["data"]["memberlist"]
                     eyedie = jsonData["data"]["id"]
@@ -258,6 +259,7 @@ def ui_function(sock):
     while True:
         try: 
             message = input()
+            print(ip_leader)
             send(sock, (ip_leader, 10000), MessageType.MESSAGE_REQUEST, data=message)
         except:
             pass
