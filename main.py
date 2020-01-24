@@ -27,6 +27,7 @@ class MessageType(Enum):
     ELECTION = 5
     HIGHEST = 6
     ACK = 7
+    WELCOME = 8
 
 # constants
 HEARTBEAT_INTERVAL = 8
@@ -97,7 +98,7 @@ def receive_multi(sock):
     global memberlist
 
     sock.settimeout(HEARTBEAT_TIMEOUT + random.randrange(0, HEARTBEAT_TIMEOUT_JITTER))
-
+    send(sock, MULTICAST_ADDR, MessageType.WELCOME)
     # Receive loop
     while True:
         try:
@@ -115,6 +116,8 @@ def receive_multi(sock):
                 if not iamleader:
                     memberlist = jsonData["data"]["memberlist"]
                     eyedie = jsonData["data"]["id"]
+            elif msgType == MessageType.WELCOME.name:
+                print("Welcome, ", server[0])
             # start election process
             elif msgType == MessageType.ELECTION.name:
                 print("election because of {}".format(jsonData["data"]))
