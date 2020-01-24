@@ -248,6 +248,10 @@ def stop_leader_thread():
 def ui_function(sock):
     print("Welcome to the P2P Chat!")
     print("Connecting...")
+    leader = None
+    if ip_leader:
+        leader = ip_leader
+    print("Aktueller Leader: ", leader)
     while True:
         try: 
             message = input()
