@@ -410,14 +410,12 @@ def election(sock):
                             data, msgType, addr = receive(sock)
                             if msgType == MessageType.HIGHEST.name:
                                 if compareIP(addr, our_ip) == -1:
-                                    print("WTF. Someone didn't listen. I am the highest")
                                     local_memberlist = []
                                 elif compareIP(addr, our_ip) == 1:
                                     current_highest = addr
                                     local_memberlist.append(addr)
                                     continue
                                 else:
-                                    #print("WTF. Someone send my ip...")
                                     continue
                             elif msgType == MessageType.LEADER.name:
                                 print("New leader {} found".format(addr))
@@ -438,7 +436,7 @@ def election(sock):
                         local_memberlist.append(addr)
                         continue
                     else:
-                        print("WTF. Someone send highest twice...")
+                        continue
                 elif msgType == MessageType.LEADER.name:
                     # raise BaseException("Unlikely: New leader {} found".format(addr)) # This case is highly unlikely and may be an error state
                     # Adjust timeout to fix this case
