@@ -154,7 +154,7 @@ def receive_multi(sock):
                     ip_leader = server[0]
                 else:
                     raise BaseException("something wrong with leader") 
-            elif msgType == MessageType.HIGHEST.name
+            elif msgType == MessageType.HIGHEST.name:
                 if first_run:
                     elec_function(sock)
                     sock.settimeout(HEARTBEAT_TIMEOUT + random.randrange(0, HEARTBEAT_TIMEOUT_JITTER))
