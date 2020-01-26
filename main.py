@@ -369,6 +369,10 @@ def election(sock):
                         continue
                     else:
                         print("WTF. Someone sent my ip...")
+                elif msgType == MessageType.LEADER.name:
+                    print("New leader {} found".format(addr))
+                    ip_leader = addr
+                    return False
                 else:
                     raise BaseException("Expected HIGHEST got {}".format(msgType))
             except socket.timeout:
@@ -423,6 +427,10 @@ def election(sock):
                                 else:
                                     #print("WTF. Someone send my ip...")
                                     continue
+                            elif msgType == MessageType.LEADER.name:
+                                print("New leader {} found".format(addr))
+                                ip_leader = addr
+                                return False
                             else:
                                 raise BaseException("Expected HIGHEST got {}".format(msgType))
                         except socket.timeout:
