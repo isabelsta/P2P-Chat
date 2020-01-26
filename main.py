@@ -318,8 +318,10 @@ def election(sock):
     current_highest = None
     sock.settimeout(HIGHEST_TIMEOUT)
     i = 0
-    while i < 5: # FIXME Maybe not endless...
+    while True: # FIXME Maybe not endless...
         i += 1
+        if i % 20 == 0:
+            print("Election is taking very long. Consider pressing <c-c>")
         i_am_the_highest = True
         if local_memberlist:
             for ip in local_memberlist:
