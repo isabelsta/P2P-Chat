@@ -306,13 +306,14 @@ def receive(sock):
         jsonData = data.decode()
         jsonData = json.loads(jsonData)
         msgType = jsonData["type"]
+        debugPrint(VERBOSE, "Got {} from {}".format(msgType, address[0]))
+        if compareIP(address[0], getOwnIp()) == 0:
+            debugPrint(VERBOSE, "Got message from own ip. Skipping it")
+            continue
         if msgType == MessageType.HIGHEST.name or msgType == MessageType.LEADER.name:
             break
-        debugPrint(VERBOSE, "Received {} from {} during election process.".format(msgType, address[0]))
+        debugPrint(VERBOSE, "Ignoring {} from {} during election process.".format(msgType, address[0]))
         #FIXME adjust timeout to compensate that we received something
-    jsonData = data.decode()
-    data = json.loads(jsonData)
-    msgType = data['type']
     memberlist.append(address[0])
     return (data, msgType, address[0])
 
