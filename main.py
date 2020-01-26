@@ -448,7 +448,7 @@ def election(sock):
                     else:
                         print("WTF. Someone send highest twice...")
                 elif msgType == MessageType.LEADER.name:
-                    raise BaseException("Unlikely: New leader {} found".format(addr)) # This case is highly unlikely and may be an error state
+                    # raise BaseException("Unlikely: New leader {} found".format(addr)) # This case is highly unlikely and may be an error state
                     # Adjust timeout to fix this case
                     ip_leader = addr
                     return False
