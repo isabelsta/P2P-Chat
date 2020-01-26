@@ -363,6 +363,7 @@ def election(sock):
                         local_memberlist.append(addr)
                         continue
                     else:
+                        continue
                 elif msgType == MessageType.LEADER.name:
                     print("New leader {} found".format(addr))
                     ip_leader = addr
@@ -389,6 +390,7 @@ def election(sock):
                         local_memberlist.append(addr)
                         continue
                     else:
+                        continue
                 elif msgType == MessageType.LEADER.name:
                     print("New leader {} found".format(addr))
                     ip_leader = addr
