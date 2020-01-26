@@ -49,6 +49,7 @@ class MessageType(Enum):
 HEARTBEAT_INTERVAL = 8
 HEARTBEAT_TIMEOUT = 15
 HEARTBEAT_TIMEOUT_JITTER = 5
+HIGHEST_WRONG_JITTER = 3
 HIGHEST_TIMEOUT = HEARTBEAT_TIMEOUT_JITTER * 1.5
 PORT_UNICAST = 10000
 PORT_MULTICAST = 20000
@@ -359,6 +360,7 @@ def election(sock):
                 if msgType == MessageType.HIGHEST.name:
                     if compareIP(addr, our_ip) == -1:
                         print("WTF. Someone didn't listen. I am the highest")
+                        time.sleep(random.randrange(0,HIGHEST_WRONG_JITTER))
                         current_highest = None
                         local_memberlist = []
                     elif compareIP(addr, our_ip) == 1:
@@ -382,6 +384,7 @@ def election(sock):
                 if msgType == MessageType.HIGHEST.name:
                     if compareIP(addr, current_highest) == -1:
                         print("WTF are you kiding me")
+                        time.sleep(random.randrange(0,HIGHEST_WRONG_JITTER))
                         current_highest = None
                         local_memberlist = []
                     elif compareIP(addr, current_highest) == 1:
