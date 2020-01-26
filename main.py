@@ -144,8 +144,8 @@ def receive_multi(sock):
             if iamleader:
                 continue
             send(sock, MULTICAST_ADDR, MessageType.ELECTION, data="no heartbeat")
-            #elec_function(sock)
-            #sock.settimeout(HEARTBEAT_TIMEOUT + random.randrange(0, HEARTBEAT_TIMEOUT_JITTER))
+            elec_function(sock)
+            sock.settimeout(HEARTBEAT_TIMEOUT + random.randrange(0, HEARTBEAT_TIMEOUT_JITTER))
     
 # prints message to console
 def print_message(sender, msg):
@@ -280,10 +280,19 @@ def compareIP(ip1, ip2):
     raise BaseException("Not yet implemented")
 
 # handles messages receiving through sock connection
+# This is called during election
 def receive(sock):
     global memberlist
-    data, address = sock.recvfrom(1024)
-    jsonData = data.decode() 
+    while True:
+        data, address = sock.recvfrom(1024)
+        jsonData = data.decode()
+        jsonData = json.loads(jsonData)
+        msgType = jsonData["type"]
+        if msgType == MessageType.HIGHEST.name or msgType == MessageType.LEADER.name:
+            break
+        debugPrint(VERBOSE, "Received {} from {} during election process.".format(msgType, address[0]))
+        #FIXME adjust timeout to compensate that we received something
+    jsonData = data.decode()
     data = json.loads(jsonData)
     msgType = data['type']
     memberlist.append(address[0])
