@@ -116,7 +116,8 @@ def receive_multi(sock):
     sock.settimeout(HEARTBEAT_TIMEOUT + random.randrange(0, HEARTBEAT_TIMEOUT_JITTER))
     send(sock, MULTICAST_ADDR, MessageType.WELCOME)
     # Receive loop
-    while True:
+    first_run = True
+    while True: 
         try:
             global eyedie
             data, server = sock.recvfrom(1024)
@@ -148,8 +149,13 @@ def receive_multi(sock):
             elif msgType == MessageType.LEADER.name:
                 if iamleader:
                     continue
+                elif first_run:
+                    ip_leader = server[0]
                 else:
-                    raise BaseException("someone sent leader") 
+                    raise BaseException("something wrong with leader") 
+            elif msgType == MessageType.HIGHEST.name and first_run:
+                elec_function(sock)
+                sock.settimeout(HEARTBEAT_TIMEOUT + random.randrange(0, HEARTBEAT_TIMEOUT_JITTER))
             else:
                 raise BaseException("Wrong message type on multicast {}".format(msgType))
         except socket.timeout:
@@ -158,6 +164,7 @@ def receive_multi(sock):
             send(sock, MULTICAST_ADDR, MessageType.ELECTION, data="no heartbeat")
             elec_function(sock)
             sock.settimeout(HEARTBEAT_TIMEOUT + random.randrange(0, HEARTBEAT_TIMEOUT_JITTER))
+        first_run = False
     
 # prints message to console
 def print_message(sender, msg):
