@@ -4,6 +4,7 @@ import socket
 import struct
 import sys
 import os
+import argparse
 import threading
 import json
 import time
@@ -12,10 +13,10 @@ from enum import Enum
 from threading import Timer
 
 VERBOSITY = 0
-VERBOSE = 10
-DEBUG = 8
-INFO = 4
-WARN = 2
+VERBOSE = 4
+DEBUG = 3
+INFO = 2
+WARN = 1
 ERROR = 0
 def debugPrint(verbosity, msg):
     if verbosity <= VERBOSITY:
@@ -425,11 +426,20 @@ def pop_highest(plist):
         plist.remove(max(plist))
     return plist
 
+def main():
+    global VERBOSITY
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--verbose', '-v', action='count', default=0)
+    args = parser.parse_args()
+    VERBOSITY = args.verbose
+    if VERBOSITY:
+        print("Verbose: {}".format(VERBOSITY))
+    connect()
 
 # main
 if __name__ == "__main__":
     try:
-        connect()
+        main()
     except KeyboardInterrupt:
         print("Interrupted")
         os._exit(1) # A bit ungraceful but it works
