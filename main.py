@@ -3,6 +3,7 @@
 import socket
 import struct
 import sys
+import os
 import threading
 import json
 import time
@@ -427,4 +428,8 @@ def pop_highest(plist):
 
 # main
 if __name__ == "__main__":
-    connect()
+    try:
+        connect()
+    except KeyboardInterrupt:
+        print("Interrupted")
+        os._exit(1) # A bit ungraceful but it works
