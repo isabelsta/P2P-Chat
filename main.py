@@ -289,13 +289,18 @@ def ui_function(sock):
 
 # compares IP addresses
 def compareIP(ip1, ip2):
-    if ip1 < ip2:
-        return -1
-    elif ip1 == ip2:
-        return 0
-    elif ip1 > ip2:
-        return 1
-    raise BaseException("Not yet implemented")
+    ip1 = ip1.split(".")
+    ip2 = ip2.split(".")
+    ip1 = [int(i) for i in ip1]
+    ip2 = [int(i) for i in ip2]
+    if len(ip1) != len(ip2):
+        raise BaseException("Length of IPs is not equal {} != {}".format(len(ip1), len(ip2)))
+    for i in range(len(ip1)):
+        if ip1[i] < ip2[i]:
+            return -1
+        elif ip1[i] > ip2[i]:
+            return 1
+    return 0
 
 # handles messages receiving through sock connection
 # This is called during election
