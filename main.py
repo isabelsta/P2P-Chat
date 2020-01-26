@@ -136,7 +136,7 @@ def receive_multi(sock):
                     memberlist = jsonData["data"]["memberlist"]
                     eyedie = jsonData["data"]["id"]
             elif msgType == MessageType.WELCOME.name:
-                print("Joined:, ", server[0])
+                print("Joined:", server[0])
             # start election process
             elif msgType == MessageType.ELECTION.name:
                 print("election because of {}".format(jsonData["data"]))
