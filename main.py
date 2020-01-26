@@ -22,6 +22,18 @@ def debugPrint(verbosity, msg):
     if verbosity <= VERBOSITY:
         print("{}: {}".format(verbosity, str(msg)))
 
+FETCHED_IP = None
+def getOwnIp():
+    global FETCHED_IP
+    if FETCHED_IP:
+        return FETCHED_IP
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    our_ip = s.getsockname()[0]
+    debugPrint(VERBOSE, "My own ip is: {}".format(our_ip))
+    FETCHED_IP = our_ip
+    return FETCHED_IP
+
 # define types of messages
 class MessageType(Enum):
     HEARTBEAT = 1
@@ -158,8 +170,7 @@ def heartbeat(sock):
     global memberlist
     global eyedie
     global hb_died
-    our_name = socket.gethostname() 
-    our_ip = socket.gethostbyname(our_name)
+    our_ip = getOwnIp()
     while iamleader:
         # if ack -> nothing 
         # FIXME maybe lock here
@@ -312,8 +323,7 @@ def election(sock):
     global iamleader
     global memberlist
     global ip_leader
-    our_name = socket.gethostname() 
-    our_ip = socket.gethostbyname(our_name)
+    our_ip = getOwnIp()
     local_memberlist = memberlist
     current_highest = None
     sock.settimeout(HIGHEST_TIMEOUT)
