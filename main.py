@@ -376,6 +376,7 @@ def election(sock):
                 if msgType == MessageType.HIGHEST.name:
                     if compareIP(addr, current_highest) == -1:
                         print("WTF are you kiding me")
+                        current_highest = None
                         local_memberlist = []
                     elif compareIP(addr, current_highest) == 1:
                         current_highest = addr
