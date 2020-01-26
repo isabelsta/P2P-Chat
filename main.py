@@ -418,7 +418,8 @@ def election(sock):
 
 # deletes highest member in list
 def pop_highest(plist):
-    plist.remove(max(plist))
+    if plist:
+        plist.remove(max(plist))
     return plist
 
 
