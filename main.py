@@ -153,7 +153,7 @@ def receive_multi(sock):
                 elif first_run:
                     ip_leader = server[0]
                 else:
-                    raise BaseException("something wrong with leader") 
+                    ip_leader = server[0]
             elif msgType == MessageType.HIGHEST.name:
                 if first_run:
                     elec_function(sock)
@@ -175,7 +175,6 @@ def print_message(sender, msg):
 # only leader
 # sends heartbeat to multicast
 def heartbeat(sock):
-    print("heartbeat")
     global memberlist
     global eyedie
     global hb_died
@@ -204,7 +203,6 @@ def heartbeat(sock):
 # handles acks and message_request
 def receive_uni(sock):
     # TODO übergebe richtigen Socket
-    print("receive uni")
     global receive_uni_died
     global memberlist
     # if message_request -> add id to message and send to multicast
@@ -277,13 +275,9 @@ def ui_function(sock):
     print("Welcome to the P2P Chat!")
     print("Connecting...")
     leader = None
-    if ip_leader:
-        leader = ip_leader
-    print("Aktueller Leader: ", leader)
     while True:
         try: 
             message = input()
-            print(ip_leader)
             send(sock, (ip_leader, 10000), MessageType.MESSAGE_REQUEST, data=message)
         except:
             pass
@@ -343,6 +337,7 @@ def election(sock):
     current_highest = None
     sock.settimeout(HIGHEST_TIMEOUT)
     i = 0
+    print("Election is running. Please wait until new leader is found.")
     while True: # FIXME Maybe not endless...
         i += 1
         if i % 20 == 0:
@@ -360,7 +355,6 @@ def election(sock):
                 data, msgType, addr = receive(sock)
                 if msgType == MessageType.HIGHEST.name:
                     if compareIP(addr, our_ip) == -1:
-                        print("WTF. Someone didn't listen. I am the highest")
                         time.sleep(random.randrange(0,HIGHEST_WRONG_JITTER))
                         current_highest = None
                         local_memberlist = []
@@ -369,7 +363,6 @@ def election(sock):
                         local_memberlist.append(addr)
                         continue
                     else:
-                        print("WTF. Someone sent my ip...")
                 elif msgType == MessageType.LEADER.name:
                     print("New leader {} found".format(addr))
                     ip_leader = addr
@@ -388,7 +381,6 @@ def election(sock):
                 data, msgType, addr = receive(sock)
                 if msgType == MessageType.HIGHEST.name:
                     if compareIP(addr, current_highest) == -1:
-                        print("WTF are you kiding me")
                         time.sleep(random.randrange(0,HIGHEST_WRONG_JITTER))
                         current_highest = None
                         local_memberlist = []
@@ -397,7 +389,6 @@ def election(sock):
                         local_memberlist.append(addr)
                         continue
                     else:
-                        print("WTF. Someone send highest twice...")
                 elif msgType == MessageType.LEADER.name:
                     print("New leader {} found".format(addr))
                     ip_leader = addr
